@@ -1,9 +1,12 @@
 import streamlit as st
 import joblib
 import pandas as pd
+import shap
+import numpy as np
 
-# Load model
+# Load model and data
 model = joblib.load("crop_model.pkl")
+X_train = joblib.load("X_train.pkl")
 
 st.title("🌱 Crop Recommendation")
 
@@ -20,9 +23,10 @@ rainfall = st.number_input("Rainfall (mm)", min_value=0.0)
 
 if st.button("Predict Crop"):
 
-    # Prediction
-    result = model.predict([[n, p, k, temp, humidity, ph, rainfall]])
+    input_data = [[n, p, k, temp, humidity, ph, rainfall]]
 
+    # Prediction
+    result = model.predict(input_data)
     st.success(f"🌾 Recommended Crop: {result[0]}")
 
     # -------------------------------
@@ -38,7 +42,7 @@ if st.button("Predict Crop"):
         st.info("Moderate rainfall → Monitor soil moisture 🌿")
 
     # -------------------------------
-    # 📊 Graph
+    # 📊 Input Graph
     # -------------------------------
     st.subheader("📊 Input Analysis")
 
@@ -50,13 +54,21 @@ if st.button("Predict Crop"):
     st.bar_chart(data.set_index("Parameters"))
 
     # -------------------------------
-    # 🧠 AI Insight
+    # 🧠 SHAP Explanation
     # -------------------------------
-    st.subheader("🧠 AI Insight")
+    st.subheader("🧠 Why this prediction? (Explainable AI)")
 
-    if result[0] == "rice":
-        st.info("Rice grows well in high rainfall and humidity conditions.")
-    elif result[0] == "wheat":
-        st.info("Wheat prefers moderate temperature and low rainfall.")
-    else:
-        st.info("This crop matches your soil and climate conditions.")
+    explainer = shap.TreeExplainer(model)
+
+    shap_values = explainer.shap_values(np.array(input_data))
+
+    feature_names = ["N", "P", "K", "Temp", "Humidity", "pH", "Rainfall"]
+
+    shap_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Impact": shap_values[0][0]
+    })
+
+    st.bar_chart(shap_df.set_index("Feature"))
+
+    st.info("Higher values show stronger influence on prediction")

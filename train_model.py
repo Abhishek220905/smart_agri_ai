@@ -8,9 +8,14 @@ df = pd.read_csv("data/Crop_recommendation.csv")
 X = df.drop("label", axis=1)
 y = df["label"]
 
+# Train model
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X, y)
 
+# Save model
 joblib.dump(model, "crop_model.pkl")
 
-print("✅ Crop model trained and saved!")
+# Save training data (IMPORTANT for SHAP)
+joblib.dump(X, "X_train.pkl")
+
+print("✅ Model and data saved!")
