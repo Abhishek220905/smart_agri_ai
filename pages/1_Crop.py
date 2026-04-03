@@ -4,9 +4,8 @@ import pandas as pd
 import shap
 import numpy as np
 
-# Load model and data
+# Load model
 model = joblib.load("crop_model.pkl")
-X_train = joblib.load("X_train.pkl")
 
 st.title("🌱 Crop Recommendation")
 
@@ -23,6 +22,7 @@ rainfall = st.number_input("Rainfall (mm)", min_value=0.0)
 
 if st.button("Predict Crop"):
 
+    # Prepare input
     input_data = [[n, p, k, temp, humidity, ph, rainfall]]
 
     # Prediction
@@ -54,21 +54,40 @@ if st.button("Predict Crop"):
     st.bar_chart(data.set_index("Parameters"))
 
     # -------------------------------
-    # 🧠 SHAP Explanation
+    # 🧠 SHAP Explanation (FINAL FIX)
     # -------------------------------
     st.subheader("🧠 Why this prediction? (Explainable AI)")
 
-    explainer = shap.TreeExplainer(model)
+    try:
+        explainer = shap.TreeExplainer(model)
 
-    shap_values = explainer.shap_values(np.array(input_data))
+        input_array = np.array([[n, p, k, temp, humidity, ph, rainfall]])
 
-    feature_names = ["N", "P", "K", "Temp", "Humidity", "pH", "Rainfall"]
+        shap_values = explainer.shap_values(input_array)
 
-    shap_df = pd.DataFrame({
-        "Feature": feature_names,
-        "Impact": shap_values[0][0]
-    })
+        feature_names = ["N", "P", "K", "Temp", "Humidity", "pH", "Rainfall"]
 
-    st.bar_chart(shap_df.set_index("Feature"))
+        # Handle classification & regression safely
+        if isinstance(shap_values, list):
+            shap_values_single = shap_values[0][0]
+        else:
+            shap_values_single = shap_values[0]
 
-    st.info("Higher values show stronger influence on prediction")
+        # Convert to 1D
+        shap_values_single = np.array(shap_values_single).flatten()
+
+        # Match length safely
+        shap_values_single = shap_values_single[:len(feature_names)]
+
+        shap_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Impact": shap_values_single
+        })
+
+        st.bar_chart(shap_df.set_index("Feature"))
+
+        st.info("Higher values = more influence on prediction")
+
+    except Exception as e:
+        st.warning("SHAP explanation could not be generated.")
+        st.error(str(e))
